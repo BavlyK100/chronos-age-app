@@ -58,14 +58,16 @@ body {
     -webkit-font-smoothing: antialiased;
 }
 
-/* Background Animated Blobs */
+/* Background Animated Blobs (Hardware Accelerated on Compositor Thread) */
 .blob {
     position: fixed;
     border-radius: 50%;
-    filter: blur(120px);
+    filter: blur(100px);
     opacity: 0.18;
     z-index: 0;
     pointer-events: none;
+    will-change: transform;
+    transform: translate3d(0, 0, 0);
     animation: floatBlob 20s infinite alternate ease-in-out;
 }
 
@@ -96,8 +98,13 @@ body {
 }
 
 @keyframes floatBlob {
-    0% { transform: translate(0, 0) scale(1); }
-    100% { transform: translate(60px, 40px) scale(1.1); }
+    0% { transform: translate3d(0, 0, 0) scale(1); }
+    100% { transform: translate3d(60px, 40px, 0) scale(1.1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .blob { animation: none; }
+    * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
 
 .site-wrapper {

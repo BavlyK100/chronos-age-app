@@ -60,6 +60,9 @@ document.addEventListener("DOMContentLoaded", () => {
         nativeShareBtn: document.getElementById("native-share-btn"),
     };
 
+    // Pre-instantiated number formatter for fast zero-allocation formatting
+    const numberFormatter = new Intl.NumberFormat("en-US");
+
     // --- 1. Live System Time Clock (Pre-instantiated Formatter) ---
     if (dom.liveTime) {
         const timeFormatter = new Intl.DateTimeFormat("en-US", {
@@ -92,13 +95,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         const startTime = performance.now();
-        // Determine the maximum duration across all tasks
-        let maxDuration = 0;
-        for (let i = 0; i < tasks.length; i++) {
-            if (tasks[i].duration > maxDuration) {
-                maxDuration = tasks[i].duration;
-            }
-        }
 
         function frame(currentTime) {
             const elapsed = currentTime - startTime;
@@ -109,11 +105,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (!task.el) continue;
 
                 const progress = Math.min(elapsed / task.duration, 1);
-                // Ease-out quint for smooth deceleration
                 const ease = 1 - Math.pow(1 - progress, 5);
                 const currentVal = Math.floor(task.start + (task.end - task.start) * ease);
 
-                const formatted = task.isFormatted ? currentVal.toLocaleString() : String(currentVal);
+                const formatted = task.isFormatted ? numberFormatter.format(currentVal) : String(currentVal);
                 if (task.lastVal !== formatted) {
                     task.el.textContent = formatted;
                     task.lastVal = formatted;
@@ -121,8 +116,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 if (progress < 1) {
                     allDone = false;
-                } else if (task.lastVal !== (task.isFormatted ? task.end.toLocaleString() : String(task.end))) {
-                    task.el.textContent = task.isFormatted ? task.end.toLocaleString() : String(task.end);
+                } else if (!task.finalized) {
+                    task.el.textContent = task.isFormatted ? numberFormatter.format(task.end) : String(task.end);
+                    task.finalized = true;
                 }
             }
 
@@ -149,13 +145,13 @@ document.addEventListener("DOMContentLoaded", () => {
         const baseSeconds = initialSeconds;
 
         if (dom.tickerSeconds) {
-            dom.tickerSeconds.textContent = baseSeconds.toLocaleString();
+            dom.tickerSeconds.textContent = numberFormatter.format(baseSeconds);
         }
 
         liveTickerInterval = setInterval(() => {
             const elapsed = Math.floor((Date.now() - startEpoch) / 1000);
             if (dom.tickerSeconds) {
-                dom.tickerSeconds.textContent = (baseSeconds + elapsed).toLocaleString();
+                dom.tickerSeconds.textContent = numberFormatter.format(baseSeconds + elapsed);
             }
         }, 1000);
     }
@@ -195,13 +191,13 @@ document.addEventListener("DOMContentLoaded", () => {
             dom.nextBday.textContent = is_birthday_today ? "Today! 🎂" : `${milestones.days_to_next_bday} day(s) away`;
         }
         if (dom.totalWeeks) {
-            dom.totalWeeks.textContent = `${totals.weeks.toLocaleString()} weeks, ${totals.remaining_days_in_week} days`;
+            dom.totalWeeks.textContent = `${numberFormatter.format(totals.weeks)} weeks, ${totals.remaining_days_in_week} days`;
         }
         if (dom.solarYears) {
             dom.solarYears.textContent = `${totals.years_solar} orbits`;
         }
         if (dom.sleepDays) {
-            dom.sleepDays.textContent = `~${surprises.sleep_days.toLocaleString()} days`;
+            dom.sleepDays.textContent = `~${numberFormatter.format(surprises.sleep_days)} days`;
         }
         if (dom.westernZodiac) {
             dom.westernZodiac.textContent = surprises.western_zodiac.name;
@@ -237,7 +233,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (dom.scBornDate) dom.scBornDate.textContent = `Born: ${birth_date}`;
         if (dom.scExactAge) dom.scExactAge.textContent = `${age.years} Yrs, ${age.months} Mos, ${age.days} Days`;
         if (dom.scWeekdayBadge) dom.scWeekdayBadge.textContent = `Born on a ${day_name_born}`;
-        if (dom.scTotalDays) dom.scTotalDays.textContent = `${totals.days.toLocaleString()} Days`;
+        if (dom.scTotalDays) dom.scTotalDays.textContent = `${numberFormatter.format(totals.days)} Days`;
 
         if (dom.scSpaceVoyage) {
             const spaceMln = (surprises.km_through_space / 1_000_000).toLocaleString(undefined, { maximumFractionDigits: 1 });

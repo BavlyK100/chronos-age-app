@@ -6,8 +6,6 @@
 :root {
     --bg-base: #0a0b14;
     --bg-surface: rgba(20, 22, 38, 0.72);
-    --bg-surface-hover: rgba(30, 34, 58, 0.85);
-    --bg-card: rgba(18, 20, 36, 0.65);
     --border-subtle: rgba(255, 255, 255, 0.08);
     --border-highlight: rgba(139, 92, 246, 0.3);
     
@@ -16,14 +14,11 @@
     --text-muted: #64748b;
 
     --primary: #6366f1;
-    --primary-hover: #4f46e5;
     --primary-glow: rgba(99, 102, 241, 0.35);
 
     --accent-violet: #8b5cf6;
     --accent-cyan: #06b6d4;
     --accent-emerald: #10b981;
-    --accent-amber: #f59e0b;
-    --accent-rose: #f43f5e;
 
     --font-heading: 'Outfit', sans-serif;
     --font-body: 'Plus Jakarta Sans', sans-serif;
@@ -31,7 +26,6 @@
     --radius-sm: 8px;
     --radius-md: 14px;
     --radius-lg: 20px;
-    --radius-xl: 28px;
 
     --transition-fast: 0.3s cubic-bezier(0.16, 1, 0.3, 1);
     --transition-smooth: 0.5s cubic-bezier(0.16, 1, 0.3, 1);

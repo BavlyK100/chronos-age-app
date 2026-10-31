@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+    <meta name="theme-color" content="#0a0b14">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>CHRONOS | Life Metrics & Age Engine</title>
+    <!-- Webpage Favicon -->
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
+    <link rel="alternate icon" href="{{ url_for('static', filename='favicon.svg') }}">
+    <!-- Google Fonts: Plus Jakarta Sans & Outfit -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome for crisp icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <!-- Canvas Confetti for Birthday celebration -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
+    <!-- html2canvas for High-Quality Social Card Export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+</head>
+<body>
+    <!-- Background Animated Glow Blobs -->
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+    <div class="blob blob-3"></div>
+
+    <div class="site-wrapper">
+        <!-- HEADER -->
+        <header class="site-header">
+            <div class="container header-container">
+                <div class="brand">
+                    <div class="brand-icon">
+                        <i class="fa-solid fa-hourglass-half"></i>
+                    </div>
+                    <div class="brand-text">
+                        <span class="brand-title">CHRONOS</span>
+                        <span class="brand-subtitle">Life Metrics Engine</span>
+                    </div>
+                </div>
+
+                <div class="header-actions">
+                    <div class="live-clock-badge">
+                        <span class="pulse-dot"></span>
+                        <span id="live-system-time">Loading...</span>
+                    </div>
+
+                    <div class="social-links">
+                        <a href="https://github.com/BavlyK100" target="_blank" rel="noopener noreferrer" class="social-btn github" title="GitHub Profile - Bavly" aria-label="GitHub">
+                            <i class="fa-brands fa-github"></i>
+                        </a>
+                        <a href="https://www.linkedin.com/in/bavlyk" target="_blank" rel="noopener noreferrer" class="social-btn linkedin" title="LinkedIn Profile - Bavly" aria-label="LinkedIn">
+                            <i class="fa-brands fa-linkedin-in"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- MAIN CONTENT -->
+        <main class="main-content">
+            <div class="container">
+                <!-- HERO INTRO -->
+                <section class="hero-section text-center">
+                    <span class="pill-badge"><i class="fa-solid fa-sparkles"></i> Precision Age & Cosmic Time Tracker</span>
+                    <h1 class="hero-heading">Discover the Story of <span class="gradient-text">Your Life in Time</span></h1>
+                    <p class="hero-desc">Enter your date of birth below to compute your precise age, time lived, biological milestones, and cosmic journey.</p>
+                </section>
+
+                <!-- DATE INPUT FORM CARD -->
+                <section class="card form-card">
+                    <form id="age-form" class="date-input-form" novalidate>
+                        <div class="form-group">
+                            <label for="birth_date">
+                                <i class="fa-regular fa-calendar-days"></i> Select Date of Birth
+                            </label>
+                            <div class="input-wrapper">
+                                <input type="date" id="birth_date" name="birth_date" max="{{ today }}" required>
+                            </div>
+                        </div>
+                        <button type="submit" id="calculate-btn" class="btn btn-primary">
+                            <span class="btn-text"><i class="fa-solid fa-wand-magic-sparkles"></i> Calculate My Life</span>
+                            <span class="btn-loader d-none"><i class="fa-solid fa-circle-notch fa-spin"></i> Calculating...</span>
+                        </button>
+                    </form>
+                    <div id="form-error" class="alert alert-error d-none"></div>
+                </section>
+
+                <!-- RESULTS CONTAINER (Hidden by default, reveals with smooth stagger) -->
+                <section id="results-wrapper" class="results-wrapper d-none">
+                    
+                    <!-- BIRTHDAY BANNER (conditionally shown if today is their birthday) -->
+                    <div id="birthday-alert" class="birthday-card d-none">
+                        <div class="birthday-content">
+                            <span class="bday-icon">🎂🎉</span>
+                            <div>
+                                <h3>HAPPY BIRTHDAY!</h3>
+                                <p>Today is your special day! Another complete orbit around the Sun. Wishing you the happiest year ahead!</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- HERO METRIC: EXACT AGE -->
+                    <div class="card hero-metric-card">
+                        <div class="card-tag">Exact Current Age</div>
+                        <div class="exact-age-grid">
+                            <div class="age-segment">
+                                <div class="metric-number count-up" id="res-years">0</div>
+                                <div class="metric-label">Years</div>
+                            </div>
+                            <div class="age-divider">:</div>
+                            <div class="age-segment">
+                                <div class="metric-number count-up" id="res-months">0</div>
+                                <div class="metric-label">Months</div>
+                            </div>
+                            <div class="age-divider">:</div>
+                            <div class="age-segment">
+                                <div class="metric-number count-up" id="res-days">0</div>
+                                <div class="metric-label">Days</div>
+                            </div>
+                        </div>
+                        <div class="hero-footer-info">
+                            <span class="info-pill"><i class="fa-regular fa-calendar-check"></i> Born on a <strong id="res-weekday">-</strong></span>
+                            <span class="info-pill highlight-pill" id="next-bday-pill"><i class="fa-solid fa-gift"></i> Next Birthday: <strong id="res-next-bday">-</strong></span>
+                        </div>
+                    </div>
+
+                    <!-- SOCIAL SHARE ACTION BAR -->
+                    <div class="share-action-bar">
+                        <div class="share-text">
+                            <h4><i class="fa-solid fa-share-nodes"></i> Share Your Life Story</h4>
+                            <p>Export a customized story card for Instagram, WhatsApp, or LinkedIn</p>
+                        </div>
+                        <div class="share-buttons">
+                            <button id="download-card-btn" class="btn btn-secondary">
+                                <span class="btn-text"><i class="fa-solid fa-download"></i> Download Card (PNG)</span>
+                                <span class="btn-loader d-none"><i class="fa-solid fa-circle-notch fa-spin"></i> Generating...</span>
+                            </button>
+                            <button id="native-share-btn" class="btn btn-primary d-none">
+                                <i class="fa-solid fa-arrow-up-from-bracket"></i> Share
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- HIDDEN SOCIAL CARD CONTAINER (Rendered off-screen for html2canvas) -->
+                    <div id="social-card-offscreen" class="social-card-wrapper">
+                        <div id="social-card-render" class="social-card">
+                            <div class="sc-header">
+                                <div class="sc-brand">
+                                    <span class="sc-logo-icon">⏳</span>
+                                    <div>
+                                        <div class="sc-brand-name">CHRONOS</div>
+                                        <div class="sc-brand-tagline">Life Metrics & Cosmic Journey</div>
+                                    </div>
+                                </div>
+                                <div class="sc-date-tag" id="sc-born-date">Born: -</div>
+                            </div>
+
+                            <div class="sc-hero">
+                                <div class="sc-hero-label">CURRENT EXACT AGE</div>
+                                <div class="sc-age-val" id="sc-exact-age">0 Years, 0 Months, 0 Days</div>
+                                <div class="sc-weekday-badge" id="sc-weekday-badge">Born on a Friday</div>
+                            </div>
+
+                            <div class="sc-grid">
+                                <div class="sc-item">
+                                    <div class="sc-item-icon">📅</div>
+                                    <div class="sc-item-val" id="sc-total-days">0 Days</div>
+                                    <div class="sc-item-label">Total Days Lived</div>
+                                </div>
+                                <div class="sc-item">
+                                    <div class="sc-item-icon">🚀</div>
+                                    <div class="sc-item-val" id="sc-space-voyage">0 km</div>
+                                    <div class="sc-item-label">Space Traveled (Earth Orbit)</div>
+                                </div>
+                                <div class="sc-item">
+                                    <div class="sc-item-icon">❤️</div>
+                                    <div class="sc-item-val" id="sc-heartbeats">0</div>
+                                    <div class="sc-item-label">Estimated Heartbeats</div>
+                                </div>
+                                <div class="sc-item">
+                                    <div class="sc-item-icon">✨</div>
+                                    <div class="sc-item-val" id="sc-zodiac">-</div>
+                                    <div class="sc-item-label">Astrological Sun Sign</div>
+                                </div>
+                            </div>
+
+                            <div class="sc-footer">
+                                <div class="sc-footer-left">
+                                    <strong>Engineered by Bavly</strong>
+                                    <span>github.com/BavlyK100 • linkedin.com/in/bavlyk</span>
+                                </div>
+                                <div class="sc-footer-badge">
+                                    <span>Precision Verified</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SECTION 1: CUMULATIVE TIME LIVED -->
+                    <div class="section-title">
+                        <h2><i class="fa-solid fa-clock-rotate-left"></i> Total Time Lived Till Now</h2>
+                        <p>Every single unit of your existence measured with accuracy</p>
+                    </div>
+
+                    <div class="stats-grid">
+                        <div class="card stat-card">
+                            <div class="stat-icon-wrapper blue"><i class="fa-regular fa-calendar"></i></div>
+                            <div class="stat-meta">
+                                <div class="stat-value count-up" id="res-total-days">0</div>
+                                <div class="stat-label">Total Days</div>
+                            </div>
+                        </div>
+
+                        <div class="card stat-card">
+                            <div class="stat-icon-wrapper purple"><i class="fa-solid fa-calendar-week"></i></div>
+                            <div class="stat-meta">
+                                <div class="stat-value" id="res-total-weeks">0</div>
+                                <div class="stat-label">Total Weeks</div>
+                            </div>
+                        </div>
+
+                        <div class="card stat-card">
+                            <div class="stat-icon-wrapper orange"><i class="fa-solid fa-calendar-alt"></i></div>
+                            <div class="stat-meta">
+                                <div class="stat-value count-up" id="res-total-months">0</div>
+                                <div class="stat-label">Total Full Months</div>
+                            </div>
+                        </div>
+
+                        <div class="card stat-card">
+                            <div class="stat-icon-wrapper teal"><i class="fa-solid fa-sun"></i></div>
+                            <div class="stat-meta">
+                                <div class="stat-value" id="res-solar-years">0</div>
+                                <div class="stat-label">Solar Earth Orbits</div>
+                            </div>
+                        </div>
+
+                        <div class="card stat-card">
+                            <div class="stat-icon-wrapper emerald"><i class="fa-regular fa-clock"></i></div>
+                            <div class="stat-meta">
+                                <div class="stat-value count-up" id="res-total-hours">0</div>
+                                <div class="stat-label">Total Hours</div>
+                            </div>
+                        </div>
+
+                        <div class="card stat-card">
+                            <div class="stat-icon-wrapper rose"><i class="fa-solid fa-stopwatch"></i></div>
+                            <div class="stat-meta">
+                                <div class="stat-value count-up" id="res-total-minutes">0</div>
+                                <div class="stat-label">Total Minutes</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- LIVE TICKING SECOND-BY-SECOND CLOCK -->
+                    <div class="card live-ticker-card">
+                        <div class="ticker-header">
+                            <span class="live-badge"><span class="pulse-dot"></span> LIVE LIFE TICKER</span>
+                            <span class="ticker-title">Ticking seconds of your unique story</span>
+                        </div>
+                        <div class="ticker-display">
+                            <span id="live-ticker-seconds">0</span> <small>Total Seconds & Counting</small>
+                        </div>
+                    </div>
+
+                    <!-- SECTION 2: SURPRISE - ASTRONOMY & BIOLOGY -->
+                    <div class="section-title">
+                        <h2><i class="fa-solid fa-stars"></i> Cosmic & Biological Journey</h2>
+                        <p>Fascinating hidden milestones you've achieved just by living</p>
+                    </div>
+
+                    <div class="stats-grid surprises-grid">
+                        <div class="card surprise-card">
+                            <div class="surprise-icon">🚀</div>
+                            <div class="surprise-info">
+                                <h4 class="surprise-title">Voyage Through Space</h4>
+                                <div class="surprise-number count-up" id="res-space-km">0</div>
+                                <p class="surprise-desc">Kilometers you've hurtled through space aboard Earth's orbit around the Sun!</p>
+                            </div>
+                        </div>
+
+                        <div class="card surprise-card">
+                            <div class="surprise-icon">❤️</div>
+                            <div class="surprise-info">
+                                <h4 class="surprise-title">Estimated Heartbeats</h4>
+                                <div class="surprise-number count-up" id="res-heartbeats">0</div>
+                                <p class="surprise-desc">Times your heart has tirelessly pumped life through your veins.</p>
+                            </div>
+                        </div>
+
+                        <div class="card surprise-card">
+                            <div class="surprise-icon">💨</div>
+                            <div class="surprise-info">
+                                <h4 class="surprise-title">Estimated Breaths</h4>
+                                <div class="surprise-number count-up" id="res-breaths">0</div>
+                                <p class="surprise-desc">Inhalations of Earth's atmosphere powering your journey.</p>
+                            </div>
+                        </div>
+
+                        <div class="card surprise-card">
+                            <div class="surprise-icon">🌙</div>
+                            <div class="surprise-info">
+                                <h4 class="surprise-title">Rest in Dreamland</h4>
+                                <div class="surprise-number" id="res-sleep-days">0</div>
+                                <p class="surprise-desc">Days spent recharging your mind and body in restful sleep.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SECTION 3: ASTROLOGY & ZODIAC IDENTITY -->
+                    <div class="zodiac-wrapper">
+                        <div class="card zodiac-card-spotlight">
+                            <div class="zodiac-icon-glow">
+                                <i class="fa-solid fa-moon"></i>
+                            </div>
+                            <div class="zodiac-info">
+                                <div class="zodiac-badge">Astrological Sun Sign</div>
+                                <h3 id="res-western-zodiac" class="zodiac-title">-</h3>
+                                <p id="res-western-traits" class="zodiac-traits">-</p>
+                            </div>
+                        </div>
+                    </div>
+
+                </section>
+            </div>
+        </main>
+
+        <!-- FOOTER -->
+        <footer class="site-footer">
+            <div class="container footer-container">
+                <div class="footer-left">
+                    <div class="footer-logo">
+                        <i class="fa-solid fa-hourglass-half"></i> CHRONOS
+                    </div>
+                    <p class="footer-text">Engineered by Bavly with Python, Flask, and modern web standards.</p>
+                </div>
+
+                <div class="footer-socials">
+                    <span class="socials-label">Connect with Bavly:</span>
+                    <div class="social-links">
+                        <a href="https://github.com/BavlyK100" target="_blank" rel="noopener noreferrer" class="social-btn github" title="Bavly on GitHub" aria-label="GitHub">
+                            <i class="fa-brands fa-github"></i>
+                        </a>
+                        <a href="https://www.linkedin.com/in/bavlyk" target="_blank" rel="noopener noreferrer" class="social-btn linkedin" title="Bavly on LinkedIn" aria-label="LinkedIn">
+                            <i class="fa-brands fa-linkedin-in"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <div class="container text-center">
+                    <p>&copy; 2026 Bavly. Designed for precision, curiosity, and elegance.</p>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Custom JS -->
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

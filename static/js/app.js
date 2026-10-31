@@ -34,17 +34,8 @@ document.addEventListener("DOMContentLoaded", () => {
     // Dynamic ticker state
     let liveTickerInterval = null;
 
-    form.addEventListener("submit", async (e) => {
-        e.preventDefault();
+    async function triggerCalculation(dateVal, shouldScroll = true) {
         hideError();
-
-        const dateVal = birthDateInput.value;
-        if (!dateVal) {
-            showError("Please pick your date of birth first.");
-            return;
-        }
-
-        // Set Loading State
         setLoading(true);
 
         try {
@@ -62,6 +53,13 @@ document.addEventListener("DOMContentLoaded", () => {
                 return;
             }
 
+            // Save to browser localStorage so user never loses their data on refresh
+            try {
+                localStorage.setItem("chronos_last_birth_date", dateVal);
+            } catch (e) {
+                console.warn("Could not save to localStorage:", e);
+            }
+
             // Render Results
             renderResults(data);
 
@@ -69,8 +67,10 @@ document.addEventListener("DOMContentLoaded", () => {
             resultsWrapper.classList.remove("d-none");
             resultsWrapper.classList.add("fade-in");
 
-            // Scroll smoothly into view
-            resultsWrapper.scrollIntoView({ behavior: "smooth", block: "start" });
+            // Scroll smoothly into view if initiated by user click
+            if (shouldScroll) {
+                resultsWrapper.scrollIntoView({ behavior: "smooth", block: "start" });
+            }
 
         } catch (err) {
             showError("Network error or server unreachable. Please try again.");
@@ -78,7 +78,28 @@ document.addEventListener("DOMContentLoaded", () => {
         } finally {
             setLoading(false);
         }
+    }
+
+    form.addEventListener("submit", (e) => {
+        e.preventDefault();
+        const dateVal = birthDateInput.value;
+        if (!dateVal) {
+            showError("Please pick your date of birth first.");
+            return;
+        }
+        triggerCalculation(dateVal, true);
     });
+
+    // 3. Restore last checked date from localStorage on load / refresh
+    try {
+        const savedDate = localStorage.getItem("chronos_last_birth_date");
+        if (savedDate) {
+            birthDateInput.value = savedDate;
+            triggerCalculation(savedDate, false);
+        }
+    } catch (e) {
+        console.warn("localStorage unavailable:", e);
+    }
 
     function setLoading(isLoading) {
         if (isLoading) {

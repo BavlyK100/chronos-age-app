@@ -1,11 +1,10 @@
 /**
  * CHRONOS: Interactive Age & Life Metrics Controller
- * Optimized for performance: DOM element caching, unified rAF batch animation,
- * drift-free live timers, and minimal allocations.
+ * Ultra-lightweight & optimized for mobile 60-120 FPS
  */
 
 document.addEventListener("DOMContentLoaded", () => {
-    // --- Cached DOM Elements ---
+    // 1. Cached DOM Elements
     const dom = {
         liveTime: document.getElementById("live-system-time"),
         form: document.getElementById("age-form"),
@@ -60,302 +59,178 @@ document.addEventListener("DOMContentLoaded", () => {
         nativeShareBtn: document.getElementById("native-share-btn"),
     };
 
-    // Pre-instantiated number formatter for fast zero-allocation formatting
-    const numberFormatter = new Intl.NumberFormat("en-US");
+    const numFmt = new Intl.NumberFormat("en-US");
 
-    // --- 1. Live System Time Clock (Pre-instantiated Formatter) ---
+    // 2. Header Clock
     if (dom.liveTime) {
-        const timeFormatter = new Intl.DateTimeFormat("en-US", {
-            hour: "2-digit",
-            minute: "2-digit",
-            second: "2-digit",
-            hour12: true,
-            month: "short",
-            day: "numeric"
+        const timeFmt = new Intl.DateTimeFormat("en-US", {
+            hour: "2-digit", minute: "2-digit", second: "2-digit",
+            hour12: true, month: "short", day: "numeric"
         });
-
-        const updateClock = () => {
-            dom.liveTime.textContent = timeFormatter.format(new Date());
-        };
-        updateClock();
-        setInterval(updateClock, 1000);
+        const tick = () => { dom.liveTime.textContent = timeFmt.format(new Date()); };
+        tick();
+        setInterval(tick, 1000);
     }
 
-    // --- 2. Unified Batch Number Animation Controller ---
-    let activeAnimationId = null;
-
-    /**
-     * Animate multiple numeric counters in a single batched requestAnimationFrame loop.
-     * Prevents DOM thrashing and cancels any previous active animation.
-     */
-    function animateCountersBatch(tasks) {
-        if (activeAnimationId !== null) {
-            cancelAnimationFrame(activeAnimationId);
-            activeAnimationId = null;
-        }
-
+    // 3. Fast, Snappy Number Counter (600ms, single rAF pass)
+    let activeRaf = null;
+    function animateCounters(tasks) {
+        if (activeRaf !== null) cancelAnimationFrame(activeRaf);
         const startTime = performance.now();
+        const DURATION = 600;
 
-        function frame(currentTime) {
-            const elapsed = currentTime - startTime;
-            let allDone = true;
+        function step(now) {
+            const p = Math.min((now - startTime) / DURATION, 1);
+            const ease = 1 - Math.pow(1 - p, 3); // Clean ease-out cubic
 
             for (let i = 0; i < tasks.length; i++) {
-                const task = tasks[i];
-                if (!task.el) continue;
-
-                const progress = Math.min(elapsed / task.duration, 1);
-                const ease = 1 - Math.pow(1 - progress, 5);
-                const currentVal = Math.floor(task.start + (task.end - task.start) * ease);
-
-                const formatted = task.isFormatted ? numberFormatter.format(currentVal) : String(currentVal);
-                if (task.lastVal !== formatted) {
-                    task.el.textContent = formatted;
-                    task.lastVal = formatted;
-                }
-
-                if (progress < 1) {
-                    allDone = false;
-                } else if (!task.finalized) {
-                    task.el.textContent = task.isFormatted ? numberFormatter.format(task.end) : String(task.end);
-                    task.finalized = true;
-                }
+                const t = tasks[i];
+                if (!t.el) continue;
+                const val = p >= 1 ? t.end : Math.floor(t.end * ease);
+                t.el.textContent = t.fmt ? numFmt.format(val) : val;
             }
 
-            if (!allDone) {
-                activeAnimationId = requestAnimationFrame(frame);
+            if (p < 1) {
+                activeRaf = requestAnimationFrame(step);
             } else {
-                activeAnimationId = null;
+                activeRaf = null;
             }
         }
-
-        activeAnimationId = requestAnimationFrame(frame);
+        activeRaf = requestAnimationFrame(step);
     }
 
-    // --- 3. Drift-Free Live Ticker ---
-    let liveTickerInterval = null;
-
-    function startLiveTicker(initialSeconds) {
-        if (liveTickerInterval !== null) {
-            clearInterval(liveTickerInterval);
-            liveTickerInterval = null;
-        }
-
-        const startEpoch = Date.now();
-        const baseSeconds = initialSeconds;
-
-        if (dom.tickerSeconds) {
-            dom.tickerSeconds.textContent = numberFormatter.format(baseSeconds);
-        }
-
-        liveTickerInterval = setInterval(() => {
-            const elapsed = Math.floor((Date.now() - startEpoch) / 1000);
-            if (dom.tickerSeconds) {
-                dom.tickerSeconds.textContent = numberFormatter.format(baseSeconds + elapsed);
-            }
+    // 4. Drift-Free Live Ticker
+    let tickerTimer = null;
+    function startTicker(initialSeconds) {
+        if (tickerTimer !== null) clearInterval(tickerTimer);
+        const start = Date.now();
+        if (dom.tickerSeconds) dom.tickerSeconds.textContent = numFmt.format(initialSeconds);
+        tickerTimer = setInterval(() => {
+            const elapsed = Math.floor((Date.now() - start) / 1000);
+            if (dom.tickerSeconds) dom.tickerSeconds.textContent = numFmt.format(initialSeconds + elapsed);
         }, 1000);
     }
 
-    // --- 4. Birthday Celebration Confetti ---
-    function triggerBirthdayConfetti() {
+    // 5. Birthday Confetti
+    function shootConfetti() {
         if (typeof confetti !== "function") return;
-        const duration = 3000;
-        const end = Date.now() + duration;
-
-        (function frame() {
-            confetti({ particleCount: 4, angle: 60, spread: 55, origin: { x: 0 } });
-            confetti({ particleCount: 4, angle: 120, spread: 55, origin: { x: 1 } });
-            if (Date.now() < end) {
-                requestAnimationFrame(frame);
-            }
-        })();
+        confetti({ particleCount: 30, spread: 60, origin: { y: 0.6 } });
     }
 
-    // --- 5. Populate Results & Trigger Animation ---
-    function renderResults(data) {
+    // 6. Populate and Display Results
+    function render(data) {
         const { age, totals, milestones, surprises, day_name_born, is_birthday_today } = data;
 
-        // Birthday Banner
         if (dom.birthdayAlert) {
-            if (is_birthday_today) {
-                dom.birthdayAlert.classList.remove("d-none");
-                triggerBirthdayConfetti();
-            } else {
-                dom.birthdayAlert.classList.add("d-none");
-            }
+            dom.birthdayAlert.classList.toggle("d-none", !is_birthday_today);
+            if (is_birthday_today) shootConfetti();
         }
 
-        // Sub-info static texts
         if (dom.weekday) dom.weekday.textContent = day_name_born;
-        if (dom.nextBday) {
-            dom.nextBday.textContent = is_birthday_today ? "Today! 🎂" : `${milestones.days_to_next_bday} day(s) away`;
-        }
-        if (dom.totalWeeks) {
-            dom.totalWeeks.textContent = `${numberFormatter.format(totals.weeks)} weeks, ${totals.remaining_days_in_week} days`;
-        }
-        if (dom.solarYears) {
-            dom.solarYears.textContent = `${totals.years_solar} orbits`;
-        }
-        if (dom.sleepDays) {
-            dom.sleepDays.textContent = `~${numberFormatter.format(surprises.sleep_days)} days`;
-        }
-        if (dom.westernZodiac) {
-            dom.westernZodiac.textContent = surprises.western_zodiac.name;
-        }
-        if (dom.westernTraits) {
-            dom.westernTraits.textContent = surprises.western_zodiac.traits;
-        }
+        if (dom.nextBday) dom.nextBday.textContent = is_birthday_today ? "Today! 🎂" : `${milestones.days_to_next_bday} day(s) away`;
+        if (dom.totalWeeks) dom.totalWeeks.textContent = `${numFmt.format(totals.weeks)} weeks, ${totals.remaining_days_in_week} days`;
+        if (dom.solarYears) dom.solarYears.textContent = `${totals.years_solar} orbits`;
+        if (dom.sleepDays) dom.sleepDays.textContent = `~${numFmt.format(surprises.sleep_days)} days`;
+        if (dom.westernZodiac) dom.westernZodiac.textContent = surprises.western_zodiac.name;
+        if (dom.westernTraits) dom.westernTraits.textContent = surprises.western_zodiac.traits;
 
-        // Batch counter animations together
-        const tasks = [
-            { el: dom.years, start: 0, end: age.years, duration: 2200, isFormatted: false },
-            { el: dom.months, start: 0, end: age.months, duration: 2200, isFormatted: false },
-            { el: dom.days, start: 0, end: age.days, duration: 2200, isFormatted: false },
-            { el: dom.totalDays, start: 0, end: totals.days, duration: 2400, isFormatted: true },
-            { el: dom.totalMonths, start: 0, end: totals.months, duration: 2400, isFormatted: true },
-            { el: dom.totalHours, start: 0, end: totals.hours, duration: 2600, isFormatted: true },
-            { el: dom.totalMinutes, start: 0, end: totals.minutes, duration: 2800, isFormatted: true },
-            { el: dom.spaceKm, start: 0, end: surprises.km_through_space, duration: 3000, isFormatted: true },
-            { el: dom.heartbeats, start: 0, end: surprises.approx_heartbeats, duration: 2800, isFormatted: true },
-            { el: dom.breaths, start: 0, end: surprises.approx_breaths, duration: 2600, isFormatted: true },
-        ];
-        animateCountersBatch(tasks);
+        animateCounters([
+            { el: dom.years, end: age.years, fmt: false },
+            { el: dom.months, end: age.months, fmt: false },
+            { el: dom.days, end: age.days, fmt: false },
+            { el: dom.totalDays, end: totals.days, fmt: true },
+            { el: dom.totalMonths, end: totals.months, fmt: true },
+            { el: dom.totalHours, end: totals.hours, fmt: true },
+            { el: dom.totalMinutes, end: totals.minutes, fmt: true },
+            { el: dom.spaceKm, end: surprises.km_through_space, fmt: true },
+            { el: dom.heartbeats, end: surprises.approx_heartbeats, fmt: true },
+            { el: dom.breaths, end: surprises.approx_breaths, fmt: true },
+        ]);
 
-        // Populate Social Card Elements
-        populateSocialCard(data);
-
-        // Start Live Drift-Free Ticker
-        startLiveTicker(totals.seconds);
-    }
-
-    function populateSocialCard(data) {
-        const { birth_date, age, totals, surprises, day_name_born } = data;
-        if (dom.scBornDate) dom.scBornDate.textContent = `Born: ${birth_date}`;
+        // Populate Social Card
+        if (dom.scBornDate) dom.scBornDate.textContent = `Born: ${data.birth_date}`;
         if (dom.scExactAge) dom.scExactAge.textContent = `${age.years} Yrs, ${age.months} Mos, ${age.days} Days`;
         if (dom.scWeekdayBadge) dom.scWeekdayBadge.textContent = `Born on a ${day_name_born}`;
-        if (dom.scTotalDays) dom.scTotalDays.textContent = `${numberFormatter.format(totals.days)} Days`;
-
-        if (dom.scSpaceVoyage) {
-            const spaceMln = (surprises.km_through_space / 1_000_000).toLocaleString(undefined, { maximumFractionDigits: 1 });
-            dom.scSpaceVoyage.textContent = `${spaceMln}M km`;
-        }
-
-        if (dom.scHeartbeats) {
-            const heartbeatsMln = (surprises.approx_heartbeats / 1_000_000).toFixed(1);
-            dom.scHeartbeats.textContent = `${heartbeatsMln}M Beats`;
-        }
-
+        if (dom.scTotalDays) dom.scTotalDays.textContent = `${numFmt.format(totals.days)} Days`;
+        if (dom.scSpaceVoyage) dom.scSpaceVoyage.textContent = `${(surprises.km_through_space / 1e6).toFixed(1)}M km`;
+        if (dom.scHeartbeats) dom.scHeartbeats.textContent = `${(surprises.approx_heartbeats / 1e6).toFixed(1)}M Beats`;
         if (dom.scZodiac) dom.scZodiac.textContent = surprises.western_zodiac.name;
+
+        startTicker(totals.seconds);
     }
 
-    // --- 6. Form Submission & API Fetching ---
-    let isCalculating = false;
-
-    function setLoading(isLoading) {
-        isCalculating = isLoading;
-        if (dom.calculateBtn) dom.calculateBtn.disabled = isLoading;
-        if (dom.btnText) dom.btnText.classList.toggle("d-none", isLoading);
-        if (dom.btnLoader) dom.btnLoader.classList.toggle("d-none", !isLoading);
-    }
-
-    function showError(msg) {
-        if (dom.errorAlert) {
-            dom.errorAlert.textContent = msg;
-            dom.errorAlert.classList.remove("d-none");
-        }
-    }
-
-    function hideError() {
-        if (dom.errorAlert) {
-            dom.errorAlert.classList.add("d-none");
-            dom.errorAlert.textContent = "";
-        }
-    }
-
-    async function triggerCalculation(dateVal, shouldScroll = true) {
-        if (isCalculating) return; // Prevent concurrent requests
-        hideError();
-        setLoading(true);
+    // 7. API Call & State
+    let busy = false;
+    async function calculate(dateVal, scroll) {
+        if (busy) return;
+        busy = true;
+        if (dom.errorAlert) dom.errorAlert.classList.add("d-none");
+        if (dom.calculateBtn) dom.calculateBtn.disabled = true;
+        if (dom.btnText) dom.btnText.classList.add("d-none");
+        if (dom.btnLoader) dom.btnLoader.classList.remove("d-none");
 
         try {
-            const response = await fetch("/api/calculate", {
+            const res = await fetch("/api/calculate", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ birth_date: dateVal })
             });
+            const data = await res.json();
 
-            const data = await response.json();
-
-            if (!response.ok || data.status !== "success") {
-                showError(data.message || "An error occurred while calculating.");
-                setLoading(false);
+            if (!res.ok || data.status !== "success") {
+                if (dom.errorAlert) {
+                    dom.errorAlert.textContent = data.message || "Calculation failed.";
+                    dom.errorAlert.classList.remove("d-none");
+                }
                 return;
             }
 
-            // Persist to browser localStorage
-            try {
-                localStorage.setItem("chronos_last_birth_date", dateVal);
-            } catch (e) {
-                // Silently handle storage quota or private mode restrictions
-            }
+            try { localStorage.setItem("chronos_last_birth_date", dateVal); } catch (e) {}
 
-            // Render Results
-            renderResults(data);
+            render(data);
 
             if (dom.resultsWrapper) {
                 dom.resultsWrapper.classList.remove("d-none");
                 dom.resultsWrapper.classList.add("fade-in");
-                if (shouldScroll) {
-                    dom.resultsWrapper.scrollIntoView({ behavior: "smooth", block: "start" });
-                }
+                if (scroll) dom.resultsWrapper.scrollIntoView({ behavior: "smooth", block: "start" });
             }
-
-        } catch (err) {
-            showError("Network error or server unreachable. Please try again.");
-            console.error(err);
+        } catch (e) {
+            if (dom.errorAlert) {
+                dom.errorAlert.textContent = "Network error. Please try again.";
+                dom.errorAlert.classList.remove("d-none");
+            }
         } finally {
-            setLoading(false);
+            busy = false;
+            if (dom.calculateBtn) dom.calculateBtn.disabled = false;
+            if (dom.btnText) dom.btnText.classList.remove("d-none");
+            if (dom.btnLoader) dom.btnLoader.classList.add("d-none");
         }
     }
 
     if (dom.form) {
         dom.form.addEventListener("submit", (e) => {
             e.preventDefault();
-            const dateVal = dom.birthDateInput ? dom.birthDateInput.value : "";
-            if (!dateVal) {
-                showError("Please pick your date of birth first.");
-                return;
-            }
-            triggerCalculation(dateVal, true);
+            const val = dom.birthDateInput ? dom.birthDateInput.value : "";
+            if (val) calculate(val, true);
         });
     }
 
-    // Restore last checked date from localStorage on load
+    // Restore saved date
     try {
-        const savedDate = localStorage.getItem("chronos_last_birth_date");
-        if (savedDate && dom.birthDateInput) {
-            dom.birthDateInput.value = savedDate;
-            triggerCalculation(savedDate, false);
+        const saved = localStorage.getItem("chronos_last_birth_date");
+        if (saved && dom.birthDateInput) {
+            dom.birthDateInput.value = saved;
+            calculate(saved, false);
         }
-    } catch (e) {
-        // Handled silently
-    }
+    } catch (e) {}
 
-    // --- 7. Social Card Export & Sharing ---
+    // 8. Social Export
     if (dom.nativeShareBtn && typeof navigator.canShare === "function") {
         dom.nativeShareBtn.classList.remove("d-none");
     }
 
-    async function generateCardCanvas() {
-        if (typeof html2canvas !== "function") {
-            throw new Error("html2canvas library is not loaded.");
-        }
-        return await html2canvas(dom.socialCard, {
-            scale: 2, // Crisp retina output
-            useCORS: true,
-            backgroundColor: "#0c0e1a",
-            logging: false
-        });
+    async function getCardCanvas() {
+        return html2canvas(dom.socialCard, { scale: 2, useCORS: true, backgroundColor: "#0c0e1a", logging: false });
     }
 
     if (dom.downloadCardBtn) {
@@ -365,19 +240,13 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (dom.dlBtnText) dom.dlBtnText.classList.add("d-none");
                 if (dom.dlBtnLoader) dom.dlBtnLoader.classList.remove("d-none");
 
-                const canvas = await generateCardCanvas();
-                const dataUrl = canvas.toDataURL("image/png");
-
-                const link = document.createElement("a");
-                link.download = `chronos-life-card-${Date.now()}.png`;
-                link.href = dataUrl;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-
-            } catch (err) {
-                console.error("Export error:", err);
-                alert("Could not export image. Please try again.");
+                const canvas = await getCardCanvas();
+                const a = document.createElement("a");
+                a.download = `chronos-life-card-${Date.now()}.png`;
+                a.href = canvas.toDataURL("image/png");
+                a.click();
+            } catch (e) {
+                alert("Could not export image.");
             } finally {
                 dom.downloadCardBtn.disabled = false;
                 if (dom.dlBtnText) dom.dlBtnText.classList.remove("d-none");
@@ -390,29 +259,18 @@ document.addEventListener("DOMContentLoaded", () => {
         dom.nativeShareBtn.addEventListener("click", async () => {
             try {
                 dom.nativeShareBtn.disabled = true;
-                const canvas = await generateCardCanvas();
-
+                const canvas = await getCardCanvas();
                 canvas.toBlob(async (blob) => {
-                    if (!blob) {
-                        dom.nativeShareBtn.disabled = false;
-                        return;
-                    }
-                    const file = new File([blob], "my-life-in-time.png", { type: "image/png" });
-
-                    if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                        await navigator.share({
-                            title: "My Life in Time | CHRONOS",
-                            text: "Check out my exact age and cosmic journey through time!",
-                            files: [file]
-                        });
+                    if (!blob) return;
+                    const file = new File([blob], "my-life-card.png", { type: "image/png" });
+                    if (navigator.canShare({ files: [file] })) {
+                        await navigator.share({ title: "My Life in Time", files: [file] });
                     } else if (dom.downloadCardBtn) {
                         dom.downloadCardBtn.click();
                     }
                     dom.nativeShareBtn.disabled = false;
                 }, "image/png");
-
-            } catch (err) {
-                console.error("Sharing error:", err);
+            } catch (e) {
                 dom.nativeShareBtn.disabled = false;
             }
         });
